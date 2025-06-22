@@ -1,6 +1,7 @@
 import argparse
 import logging
 import re
+from typing import Any
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -13,7 +14,7 @@ B = "X^1"
 C = "X^0"
 
 
-def sqrt(num, epsilon=1e-10):
+def sqrt(num: float, epsilon=1e-10):
     """Compute the square root of a number using the binary search (mid) method."""
     if num < 0:
         raise ValueError("Cannot compute square root of a negative number.")
@@ -29,6 +30,12 @@ def sqrt(num, epsilon=1e-10):
     return (low + high) / 2
 
 
+def abs(num: float | int):
+    if num < 0:
+        return num * -1
+    return num
+
+
 class Polynomial:
     degree: int
     terms: list[str]
@@ -36,6 +43,11 @@ class Polynomial:
 
     class MaxDegree(Exception):
         def __init__(self, message: str, degree: int):
+            super().__init__(message)
+            self.degree = degree
+
+    class Unsolvable(Exception):
+        def __init__(self, message, degree):
             super().__init__(message)
             self.degree = degree
 
@@ -52,6 +64,25 @@ class Polynomial:
 
     def __str__(self) -> str:
         return self.expression
+
+    @property
+    def reduced_form(self) -> str:
+        coefficients = self.reduce()
+        reduced = ""
+        items = enumerate(coefficients.items())
+        for idx, (c, v) in items:
+            is_first = bool(idx == 0)
+
+            value = int(v) if v == int(v) else v
+
+            if not is_first:
+                reduced += " + " if value >= 0 else " - "
+                reduced += f"{abs(value)} * {c}"
+            else:
+                reduced += f"{value} * {c}"
+
+        reduced += "= 0"
+        return reduced
 
     def extract_degree(self) -> int:
         """Extract the degree of the polynomial from the expression."""
@@ -98,7 +129,7 @@ class Polynomial:
         b = coefficients[B]
         c = coefficients[C]
         x = (-1 * c) / b
-        print(x)
+        return x
 
     def _solve_quadratic(self) -> tuple[float, float] | float:
         coefficients = self.reduce()
@@ -118,7 +149,6 @@ class Polynomial:
 
     def solve(self) -> tuple[float, float] | float:
         """Solve the polynomial equation."""
-        print("solving")
         match self.degree:
             case 2:
                 return self._solve_quadratic()
@@ -130,19 +160,22 @@ class Polynomial:
                 raise Exception("not supported")
 
 
-def is_validate_polynomial(polynomial: str) -> bool:
+def is_validate_polynomial(polynomial: Any) -> bool:
     """Validate the polynomial expression.
 
     Args:
-        polynomial (str): The polynomial expression to validate.
+        polynomial (Any): The polynomial expression to validate.
 
     Returns:
         bool: True if the polynomial is valid, False otherwise.
     """
-    pattern = r"^()$"
+
     try:
+        if not isinstance(polynomial, str):
+            raise ValueError("polynomial is not a string")
         return True
     except Exception as e:
+        logging.error(e)
         return False
 
 
@@ -163,12 +196,13 @@ def parse_polynomial_from_args() -> str:
 
 def main() -> None:
     try:
-        polynomial = parse_polynomial_from_args()
-        p = Polynomial(polynomial)
-        p.solve()
-        logging.info(f"Polynomial: {p},\nDegree: {p.degree},\nTerms: {p.terms}")
+        polynomial_expression = parse_polynomial_from_args()
+        p = Polynomial(polynomial_expression)
+        solution: tuple[float, float] | float = p.solve()
+        logging.info(f"reduced form {p.reduced_form}")
+        logging.info(f"degree {p.degree}")
+        logging.info(f"solution: {solution}")
     except Exception as e:
-
         logging.error(f"Error getting polynomial: {e}")
         return
 
