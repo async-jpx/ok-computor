@@ -4,7 +4,7 @@ import re
 from typing import Any
 
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.INFO,
     format="%(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
 )
@@ -53,6 +53,9 @@ class Polynomial:
             self.message = message
             self.degree = degree
 
+    class AllRealSolution(Unsolvable):
+        pass
+
     def __init__(self, expression: str) -> None:
         self.expression: str = expression
         self.terms = self._extract_terms()
@@ -88,10 +91,13 @@ class Polynomial:
 
     def extract_degree(self) -> int:
         """Extract the degree of the polynomial from the expression."""
-        exponents_pattern = r"\^(\d+)"
-        exponents = re.findall(exponents_pattern, self.expression)
-        max_degree = max(map(int, exponents))
-        return max_degree
+        coefficients = self.reduce()
+        whole_coefficients = {k: v for k, v in coefficients.items() if v != 0}
+        sorted_key = sorted(whole_coefficients.keys(), reverse=True)
+        if len(sorted_key) == 0:
+            return 0
+        else:
+            return int(sorted_key[0].split("^")[1])
 
     def reduce(self) -> dict[str, float]:
         coefficients: dict[str, float] = {}
@@ -105,10 +111,10 @@ class Polynomial:
 
     def _filp_term_sign(self, term: str) -> str:
         """Flip the sign of a term."""
-        coefficient_str = term.split("*")[0]
-        coefficient = float(term.split("*")[0])
+        coefficient_str, degree = term.split("*")
+        coefficient = float(coefficient_str)
         coefficient = coefficient * -1
-        return term.replace(coefficient_str, str(coefficient))
+        return f"{str(coefficient)}*{degree}"
 
     def _extract_terms(self) -> list:
         """Extract the terms of the polynomial from the expression."""
@@ -133,7 +139,7 @@ class Polynomial:
         x = (-1 * c) / b
         return x
 
-    def _solve_quadratic(self) -> tuple[float, float] | float:
+    def _solve_quadratic(self) -> tuple[float, float] | float | tuple[complex, complex]:
         coefficients = self.reduce()
         a = coefficients[A]
         b = coefficients[B]
@@ -145,11 +151,29 @@ class Polynomial:
         if not a:
             return self._solve_linear()
 
-        x1 = ((-1 * b) - sqrt((b * b) - (4 * a * c))) / (2 * a)
-        x2 = ((-1 * b) + sqrt((b * b) - (4 * a * c))) / (2 * a)
+        discriminant = (b * b) - (4 * a * c)
+        if discriminant < 0:
+            real = (-b) / (2 * a)
+            imag = sqrt(-discriminant) / (2 * a)
+            x1 = complex(real, -imag)
+            x2 = complex(real, imag)
+            return (x1, x2)
+
+        x1 = ((-1 * b) - sqrt(discriminant)) / (2 * a)
+        x2 = ((-1 * b) + sqrt(discriminant)) / (2 * a)
+        if x1 == x2:
+            return x1
         return (x1, x2)
 
-    def solve(self) -> tuple[float, float] | float:
+    def _solve_constant(self):
+        coefficients = self.reduce()
+        c = coefficients[C]
+        if c != 0:
+            raise self.Unsolvable("no solution", self.degree)
+        else:
+            raise self.AllRealSolution("solution is R", self.degree)
+
+    def solve(self) -> tuple[float, float] | float | tuple[complex, complex]:
         """Solve the polynomial equation."""
         match self.degree:
             case 2:
@@ -157,9 +181,9 @@ class Polynomial:
             case 1:
                 return self._solve_linear()
             case 0:
-                raise ValueError("solution is R")
+                self._solve_constant()
             case _:
-                raise Exception("not supported")
+                raise self.MaxDegree("not supported", self.degree)
 
 
 def is_validate_polynomial(polynomial: Any) -> bool:
@@ -200,10 +224,10 @@ def main() -> None:
     try:
         polynomial_expression = parse_polynomial_from_args()
         p = Polynomial(polynomial_expression)
-        logging.info(f"Reduced form {p.reduced_form}")
-        logging.info(f"Degree {p.degree}")
+        logging.info(f"Reduced Form: {p.reduced_form}")
+        logging.info(f"Polynomial degree {p.degree}")
         solution: tuple[float, float] | float = p.solve()
-        logging.info(f"Solution: {solution}")
+        logging.info(f"The Solution is: {solution}")
     except Polynomial.MaxDegree as e:
         logging.error(f"Error: {e.message}")
     except Polynomial.Unsolvable as e:
@@ -215,3 +239,5 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+
