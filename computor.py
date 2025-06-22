@@ -5,7 +5,7 @@ from typing import Any
 
 logging.basicConfig(
     level=logging.DEBUG,
-    format="%(asctime)s - %(levelname)s - %(message)s",
+    format="%(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
 )
 
@@ -44,11 +44,13 @@ class Polynomial:
     class MaxDegree(Exception):
         def __init__(self, message: str, degree: int):
             super().__init__(message)
+            self.message = message
             self.degree = degree
 
     class Unsolvable(Exception):
         def __init__(self, message, degree):
             super().__init__(message)
+            self.message = message
             self.degree = degree
 
     def __init__(self, expression: str) -> None:
@@ -81,7 +83,7 @@ class Polynomial:
             else:
                 reduced += f"{value} * {c}"
 
-        reduced += "= 0"
+        reduced += " = 0"
         return reduced
 
     def extract_degree(self) -> int:
@@ -198,10 +200,14 @@ def main() -> None:
     try:
         polynomial_expression = parse_polynomial_from_args()
         p = Polynomial(polynomial_expression)
+        logging.info(f"Reduced form {p.reduced_form}")
+        logging.info(f"Degree {p.degree}")
         solution: tuple[float, float] | float = p.solve()
-        logging.info(f"reduced form {p.reduced_form}")
-        logging.info(f"degree {p.degree}")
-        logging.info(f"solution: {solution}")
+        logging.info(f"Solution: {solution}")
+    except Polynomial.MaxDegree as e:
+        logging.error(f"Error: {e.message}")
+    except Polynomial.Unsolvable as e:
+        logging.info(e.message)
     except Exception as e:
         logging.error(f"Error getting polynomial: {e}")
         return
