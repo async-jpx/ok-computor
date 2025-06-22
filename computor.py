@@ -8,6 +8,26 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S",
 )
 
+A = "X^2"
+B = "X^1"
+C = "X^0"
+
+
+def sqrt(num, epsilon=1e-10):
+    """Compute the square root of a number using the binary search (mid) method."""
+    if num < 0:
+        raise ValueError("Cannot compute square root of a negative number.")
+    if num == 0 or num == 1:
+        return num
+    low, high = (0, num) if num > 1 else (num, 1)
+    while high - low > epsilon:
+        mid = (low + high) / 2
+        if mid * mid < num:
+            low = mid
+        else:
+            high = mid
+    return (low + high) / 2
+
 
 class Polynomial:
     degree: int
@@ -40,15 +60,15 @@ class Polynomial:
         max_degree = max(map(int, exponents))
         return max_degree
 
-    def reduce(self) -> str:
-        var_degrees_dict: dict[str, float] = {}
+    def reduce(self) -> dict[str, float]:
+        coefficients: dict[str, float] = {}
         for term in self.terms:
             coefficient, var = term.split("*")
-            if var not in var_degrees_dict:
-                var_degrees_dict[var] = float(coefficient)
+            if var not in coefficients:
+                coefficients[var] = float(coefficient)
             else:
-                var_degrees_dict[var] += float(coefficient)
-        return [f"{v:g}*{k}" for k, v in var_degrees_dict.items()]
+                coefficients[var] += float(coefficient)
+        return coefficients
 
     def _filp_term_sign(self, term: str) -> str:
         """Flip the sign of a term."""
@@ -74,21 +94,38 @@ class Polynomial:
         return cls(Polynomial(expression))
 
     def _solve_linear(self):
+        coefficients = self.reduce()
+        b = coefficients[B]
+        c = coefficients[C]
+        x = (-1 * c) / b
+        print(x)
 
-        pass
+    def _solve_quadratic(self) -> tuple[float, float] | float:
+        coefficients = self.reduce()
+        a = coefficients[A]
+        b = coefficients[B]
+        c = coefficients[C]
 
-    def _solve_quadratic(self):
-        pass
+        if not a and not b and not c:
+            raise ValueError("no solution")
 
-    def solve(self):
+        if not a:
+            return self._solve_linear()
+
+        x1 = ((-1 * b) - sqrt((b * b) - (4 * a * c))) / (2 * a)
+        x2 = ((-1 * b) + sqrt((b * b) - (4 * a * c))) / (2 * a)
+        return (x1, x2)
+
+    def solve(self) -> tuple[float, float] | float:
         """Solve the polynomial equation."""
+        print("solving")
         match self.degree:
             case 2:
-                self._solve_quadratic()
+                return self._solve_quadratic()
             case 1:
-                self._solve_linear()
+                return self._solve_linear()
             case 0:
-                pass
+                raise ValueError("solution is R")
             case _:
                 raise Exception("not supported")
 
