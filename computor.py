@@ -1,6 +1,7 @@
 import argparse
 import logging
 import re
+import unittest
 from typing import Any
 
 logging.basicConfig(
@@ -205,15 +206,12 @@ def is_validate_polynomial(polynomial: Any) -> bool:
         return False
 
 
-def parse_polynomial_from_args() -> str:
+def parse_polynomial_from_args(args) -> str:
     """Parse the polynomial expression from command-line arguments.
 
     Returns:
              str: The polynomial expression.
     """
-    parser = argparse.ArgumentParser(description="A simple polynomial calculator.")
-    parser.add_argument("polynomial", type=str, help="The polynomial to calculate.")
-    args = parser.parse_args()
     polynomial = args.polynomial
     if not is_validate_polynomial(polynomial):
         raise ValueError("Invalid polynomial expression.")
@@ -222,7 +220,11 @@ def parse_polynomial_from_args() -> str:
 
 def main() -> None:
     try:
-        polynomial_expression = parse_polynomial_from_args()
+        parser = argparse.ArgumentParser(description="A simple polynomial calculator.")
+        parser.add_argument("polynomial", type=str, help="The polynomial to calculate.")
+        args = parser.parse_args()
+
+        polynomial_expression = parse_polynomial_from_args(args)
         p = Polynomial(polynomial_expression)
         logging.info(f"Reduced Form: {p.reduced_form}")
         logging.info(f"Polynomial degree {p.degree}")
@@ -237,7 +239,82 @@ def main() -> None:
         return
 
 
+class TestPolynomialSolver(unittest.TestCase):
+    def assertComplexRoots(self, roots, expected):
+        self.assertEqual(len(roots), 2)
+        for r, e in zip(roots, expected):
+            self.assertAlmostEqual(r.real, e.real, places=3)
+            self.assertAlmostEqual(r.imag, e.imag, places=3)
+
+    def test_no_solution(self):
+        with self.assertRaises(Polynomial.Unsolvable):
+            Polynomial("5 * X^0 = 3 * X^0").solve()
+
+    def test_infinite_solutions(self):
+        with self.assertRaises(Polynomial.AllRealSolution):
+            Polynomial("5 * X^0 = 5 * X^0").solve()
+
+    def test_single_real(self):
+        result = Polynomial("2 * X^1 + 4 * X^0 = 0 * X^0").solve()
+        self.assertAlmostEqual(result, -2.0, places=3)
+
+    def test_degenerate_infinite(self):
+        with self.assertRaises(Polynomial.AllRealSolution):
+            Polynomial("0 * X^1 + 3 * X^0 = 3 * X^0").solve()
+
+    def test_degenerate_no_solution(self):
+        with self.assertRaises(Polynomial.Unsolvable):
+            Polynomial("0 * X^1 + 3 * X^0 = 5 * X^0").solve()
+
+    def test_two_distinct_real(self):
+        result = Polynomial("1 * X^2 - 3 * X^1 + 2 * X^0 = 0 * X^0").solve()
+        self.assertTrue(isinstance(result, tuple))
+        self.assertAlmostEqual(result[0], 1.0, places=3)
+        self.assertAlmostEqual(result[1], 2.0, places=3)
+
+    def test_one_double_real(self):
+        result = Polynomial("1 * X^2 - 2 * X^1 + 1 * X^0 = 0 * X^0").solve()
+        self.assertAlmostEqual(result, 1.0, places=3)
+
+    def test_two_complex(self):
+        result = Polynomial("1 * X^2 + 0 * X^1 + 1 * X^0 = 0 * X^0").solve()
+        self.assertTrue(isinstance(result, tuple))
+        expected = (complex(0, -1), complex(0, 1))
+        self.assertComplexRoots(result, expected)
+
+    def test_degenerate_linear(self):
+        result = Polynomial("0 * X^2 + 3 * X^1 + 6 * X^0 = 0 * X^0").solve()
+        self.assertAlmostEqual(result, -2.0, places=3)
+
+    def test_degenerate_no_solution2(self):
+        with self.assertRaises(Polynomial.Unsolvable):
+            Polynomial("0 * X^2 + 0 * X^1 + 5 * X^0 = 0 * X^0").solve()
+
+    def test_degenerate_infinite2(self):
+        with self.assertRaises(Polynomial.AllRealSolution):
+            Polynomial("0 * X^2 + 0 * X^1 + 0 * X^0 = 0 * X^0").solve()
+
+    def test_two_complex2(self):
+        result = Polynomial("-1.5 * X^2 + 3.2 * X^1 - 4.8 * X^0 = 0 * X^0").solve()
+        self.assertTrue(isinstance(result, tuple))
+        # x = (–3.2 ± i·√18.56)/(–3)
+        real = (-3.2) / (-3)
+        imag = (sqrt(18.56)) / abs(-3)
+        expected = (complex(real, -imag), complex(real, imag))
+        self.assertComplexRoots(result, expected)
+
+    def test_one_double_real2(self):
+        result = Polynomial("2.5 * X^2 - 5 * X^1 + 2.5 * X^0 = 0 * X^0").solve()
+        self.assertAlmostEqual(result, 1.0, places=3)
+
+    def test_two_distinct_real2(self):
+        result = Polynomial("0.5 * X^2 - 1 * X^1 - 1 * X^0 = 0 * X^0").solve()
+        self.assertTrue(isinstance(result, tuple))
+        # x = (1 ± sqrt(3))/1 ≈ 2.732, –0.732
+        self.assertAlmostEqual(result[0], 2.732, places=3)
+        self.assertAlmostEqual(result[1], -0.732, places=3)
+
+
 if __name__ == "__main__":
-    main()
-
-
+    # main()
+    unittest.main()
