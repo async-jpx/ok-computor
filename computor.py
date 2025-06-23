@@ -41,6 +41,7 @@ class Polynomial:
     degree: int
     terms: list[str]
     max_degree = 2
+    discriminant = None
 
     class MaxDegree(Exception):
         def __init__(self, message: str, degree: int):
@@ -61,12 +62,6 @@ class Polynomial:
         self.expression: str = expression
         self.terms = self._extract_terms()
         self.degree = self.extract_degree()
-
-        if self.degree > self.max_degree:
-            raise self.MaxDegree(
-                message=f"Polynomial of degree {self.degree} is not supported, max degree is {self.max_degree}",
-                degree=self.degree,
-            )
 
     def __str__(self) -> str:
         return self.expression
@@ -153,6 +148,8 @@ class Polynomial:
             return self._solve_linear()
 
         discriminant = (b * b) - (4 * a * c)
+        self.discriminant = discriminant
+
         if discriminant < 0:
             real = (-b) / (2 * a)
             imag = sqrt(-discriminant) / (2 * a)
@@ -170,9 +167,9 @@ class Polynomial:
         coefficients = self.reduce()
         c = coefficients[C]
         if c != 0:
-            raise self.Unsolvable("no solution", self.degree)
+            raise self.Unsolvable("No solution", self.degree)
         else:
-            raise self.AllRealSolution("solution is R", self.degree)
+            raise self.AllRealSolution("Solution is R", self.degree)
 
     def solve(self) -> tuple[float, float] | float | tuple[complex, complex]:
         """Solve the polynomial equation."""
@@ -184,7 +181,10 @@ class Polynomial:
             case 0:
                 self._solve_constant()
             case _:
-                raise self.MaxDegree("not supported", self.degree)
+                raise self.MaxDegree(
+                    "The polynomial degree is strictly greater than 2, I can't solve.",
+                    self.degree,
+                )
 
 
 def is_validate_polynomial(polynomial: Any) -> bool:
@@ -218,6 +218,26 @@ def parse_polynomial_from_args(args) -> str:
     return polynomial
 
 
+def display_solution(
+    p: Polynomial, results: tuple[float, float] | float | tuple[complex, complex]
+):
+    message = "The solution is:"
+    if p.discriminant is not None:
+        if p.discriminant > 0:
+            message = "Discriminant is strictly positive, the two solutions are:"
+        elif p.discriminant < 0:
+            message = (
+                "Discriminant is strictly negative, the two complex solutions are:"
+            )
+
+    print(message)
+    if isinstance(results, tuple):
+        print(results[0])
+        print(results[1])
+    else:
+        print(results)
+
+
 def main() -> None:
     try:
         parser = argparse.ArgumentParser(description="A simple polynomial calculator.")
@@ -227,16 +247,15 @@ def main() -> None:
         polynomial_expression = parse_polynomial_from_args(args)
         p = Polynomial(polynomial_expression)
         logging.info(f"Reduced Form: {p.reduced_form}")
-        logging.info(f"Polynomial degree {p.degree}")
+        logging.info(f"Polynomial Degree: {p.degree}")
         solution: tuple[float, float] | float = p.solve()
-        logging.info(f"The Solution is: {solution}")
-    except Polynomial.MaxDegree as e:
-        logging.error(f"Error: {e.message}")
-    except Polynomial.Unsolvable as e:
+        display_solution(p, solution)
+    except (Polynomial.Unsolvable, Polynomial.MaxDegree) as e:
         logging.info(e.message)
-    except Exception as e:
+    except ValueError as e:
         logging.error(f"Error getting polynomial: {e}")
-        return
+    except Exception as e:
+        logging.error(f"Error: {e}")
 
 
 class TestPolynomialSolver(unittest.TestCase):
@@ -316,5 +335,5 @@ class TestPolynomialSolver(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    # main()
-    unittest.main()
+    main()
+    # unittest.main(verbosity=2)
