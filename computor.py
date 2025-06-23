@@ -158,13 +158,13 @@ class Polynomial:
             imag = sqrt(-discriminant) / (2 * a)
             x1 = complex(real, -imag)
             x2 = complex(real, imag)
-            return (x1, x2)
+            return tuple(sorted((x1, x2), key=lambda x: x.imag))
 
         x1 = ((-1 * b) - sqrt(discriminant)) / (2 * a)
         x2 = ((-1 * b) + sqrt(discriminant)) / (2 * a)
         if x1 == x2:
             return x1
-        return (x1, x2)
+        return tuple(sorted((x1, x2)))
 
     def _solve_constant(self):
         coefficients = self.reduce()
@@ -311,8 +311,8 @@ class TestPolynomialSolver(unittest.TestCase):
         result = Polynomial("0.5 * X^2 - 1 * X^1 - 1 * X^0 = 0 * X^0").solve()
         self.assertTrue(isinstance(result, tuple))
         # x = (1 ± sqrt(3))/1 ≈ 2.732, –0.732
-        self.assertAlmostEqual(result[0], 2.732, places=3)
-        self.assertAlmostEqual(result[1], -0.732, places=3)
+        self.assertAlmostEqual(result[0], -0.732, places=3)
+        self.assertAlmostEqual(result[1], 2.732, places=3)
 
 
 if __name__ == "__main__":
